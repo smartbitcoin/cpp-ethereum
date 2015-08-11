@@ -10,6 +10,7 @@ typedef union
 	uint32_t uint32s[16 / sizeof(uint32_t)];
 } hash16_t;
 
+
 typedef union
 {
 	uint32_t uint32s[32 / sizeof(uint32_t)];
@@ -31,26 +32,18 @@ typedef union
 	uint4	 uint4s[128 / sizeof(uint4)];
 } hash128_t;
 
-//typedef uint32_t hash128_t;
-
 cudaError set_constants(
 	uint32_t * dag_size,
 	uint32_t * max_outputs
 );
 
-void run_ethash_hash(
-	hash32_t* g_hashes,
-	hash32_t const* g_header,
-	hash128_t const* g_dag,
-	uint64_t start_nonce
-);
-
 void run_ethash_search(
-	uint32_t search_batch_size,
-	uint32_t workgroup_size,
+	uint32_t blocks,
+	uint32_t threads,
 	cudaStream_t stream,
 	uint32_t* g_output,
 	hash32_t const* g_header,
+	uint64_t* g_state,
 	hash128_t const* g_dag,
 	uint64_t start_nonce,
 	uint64_t target

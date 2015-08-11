@@ -40,6 +40,7 @@ private:
 
 	hash128_t * m_dag_ptr;
 	hash32_t * m_header;
+	uint64_t * m_state;
 
 	void ** m_hash_buf;
 	uint32_t ** m_search_buf;

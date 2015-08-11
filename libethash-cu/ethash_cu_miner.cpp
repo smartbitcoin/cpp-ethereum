@@ -160,8 +160,11 @@ bool ethash_cu_miner::init(uint8_t const* _dag, uint64_t _dagSize, unsigned num_
 	// create buffer for dag
 	result = cudaMalloc(&m_dag_ptr, _dagSize);
 
-	// create buffer for header256
+	// create buffer for header
 	result = cudaMalloc(&m_header, 32);
+
+	// create buffer for header
+	result = cudaMalloc(&m_state, m_search_batch_size*12*sizeof(uint64_t));
 
 	// copy dag to CPU.
     result = cudaMemcpy(m_dag_ptr, _dag, _dagSize, cudaMemcpyHostToDevice);
@@ -216,7 +219,7 @@ void ethash_cu_miner::search(uint8_t const* header, uint64_t target, search_hook
 	uint64_t start_nonce = std::uniform_int_distribution<uint64_t>()(engine);
 	for (;; start_nonce += m_search_batch_size)
 	{
-		run_ethash_search(m_search_batch_size / m_workgroup_size, m_workgroup_size, m_streams[buf], m_search_buf[buf], m_header, m_dag_ptr, start_nonce, target);	
+		run_ethash_search(m_search_batch_size / m_workgroup_size, m_workgroup_size, m_streams[buf], m_search_buf[buf], m_header, m_state, m_dag_ptr, start_nonce, target);	
 
 		pending.push({ start_nonce, buf });
 		buf = (buf + 1) % m_num_buffers;
