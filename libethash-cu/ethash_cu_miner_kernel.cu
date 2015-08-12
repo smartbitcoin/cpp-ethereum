@@ -5,7 +5,9 @@
 */
 
 #define SHUFFLE_CUDA_VERSION 300
-
+#ifndef __CUDA_ARCH__
+#define __CUDA_ARCH__ SHUFFLE_CUDA_VERSION
+#endif
 #include "ethash_cu_miner_kernel.h"
 #include "ethash_cu_miner_kernel_globals.h"
 #include "rotl64.cuh"
@@ -23,7 +25,7 @@
    (ROTL64H(v, 56) & 0xFF000000FF000000))
 
 __global__ void 
-__launch_bounds__(128, 7)
+__launch_bounds__(128, 6)
 ethash_search(
 	uint32_t* g_output,
 	hash32_t const* g_header,
@@ -54,7 +56,7 @@ ethash_search(
 }
 
 __global__ void
-__launch_bounds__(128, 7)
+__launch_bounds__(128, 6)
 ethash_init(
 	uint64_t* g_state,
 	hash32_t const* g_header,
@@ -79,7 +81,7 @@ ethash_init(
 }
 
 __global__ void
-__launch_bounds__(128, 7)
+__launch_bounds__(128, 6)
 ethash_dagger(
 	uint64_t* g_state,
 	hash128_t const* g_dag
@@ -241,11 +243,14 @@ void run_ethash_search(
 	ethash_init  <<<blocks, threads, 0, stream >>>(g_state, g_header, start_nonce);
 	cudaDeviceSynchronize();
 
-	ethash_dagger << <blocks, threads, (sizeof(compute_hash_share) * threads) / THREADS_PER_HASH, stream >> >(g_state, g_dag);
+#if __CUDA_ARCH__ >= SHUFFLE_CUDA_VERSION
+	ethash_dagger << <blocks, threads, 0, stream >> >(g_state, g_dag);
+#else
+	ethash_dagger <<<blocks, threads, (sizeof(compute_hash_share) * threads) / THREADS_PER_HASH, stream >> >(g_state, g_dag);
+#endif
 	cudaDeviceSynchronize();
 
-	ethash_final << <blocks, threads, 0, stream >> >(g_output, g_state, target);
-	cudaDeviceSynchronize();
+	ethash_final <<<blocks, threads, 0, stream >>>(g_output, g_state, target);
 }
 
 cudaError set_constants(
