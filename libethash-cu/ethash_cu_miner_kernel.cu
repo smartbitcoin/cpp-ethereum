@@ -18,45 +18,15 @@
 #include "dagger.cuh"
 #endif
 
+
 #define SWAP64(v) \
   ((ROTL64L(v,  8) & 0x000000FF000000FF) | \
    (ROTL64L(v, 24) & 0x0000FF000000FF00) | \
    (ROTL64H(v, 40) & 0x00FF000000FF0000) | \
    (ROTL64H(v, 56) & 0xFF000000FF000000))
 
-__global__ void 
-__launch_bounds__(128, 6)
-ethash_search(
-	uint32_t* g_output,
-	hash32_t const* g_header,
-	hash128_t const* g_dag,
-	uint64_t start_nonce,
-	uint64_t target
-	)
-{
-	
-	uint32_t const gid = blockIdx.x * blockDim.x + threadIdx.x;	
-	
-#if __CUDA_ARCH__ >= SHUFFLE_CUDA_VERSION
-	uint64_t hash = compute_hash_shuffle(g_header, g_dag, start_nonce + gid);
-	if (SWAP64(hash) < target)
-	{
-		atomicInc(g_output, d_max_outputs);
-		g_output[g_output[0]] = gid;
-	}
-#else
-	hash32_t hash = compute_hash(g_header, g_dag, start_nonce + gid);	
-	if (SWAP64(hash.uint64s[0]) < target)
-	{
-		atomicInc(g_output,d_max_outputs);
-		g_output[g_output[0]] = gid;
-	}
-#endif
-	
-}
-
 __global__ void
-__launch_bounds__(128, 6)
+__launch_bounds__(128, 7)
 ethash_init(
 	uint64_t* g_state,
 	hash32_t const* g_header,
@@ -77,22 +47,20 @@ ethash_init(
 	}
 	state[8] = 0x8000000000000000;
 	keccak_f1600_block(state, 8);
-	copy(g_state + (gid * 12), state, 8);
+	copy(g_state + (gid * STATE_SIZE), state, 8);
 }
 
 __global__ void
-__launch_bounds__(128, 6)
+__launch_bounds__(128, 7)
 ethash_dagger(
 	uint64_t* g_state,
 	hash128_t const* g_dag
 )
 {
-
-	uint64_t state[8];
-
 	uint32_t const gid = blockIdx.x * blockDim.x + threadIdx.x;
 
-	copy(state, g_state + (gid * 12), 8);
+	uint64_t state[8];
+	copy(state, g_state + (gid * STATE_SIZE), 8);
 
 	// Threads work together in this phase in groups of 8.
 	uint64_t const thread_id = threadIdx.x & (THREADS_PER_HASH - 1);
@@ -103,7 +71,7 @@ ethash_dagger(
 	uint4 mix;
 
 	uint32_t shuffle[16];
-	uint32_t * init = (uint32_t *)state;
+	uint32_t * init = (uint32_t *)state;// (g_state + (gid * STATE_SIZE));
 
 	for (int i = 0; i < THREADS_PER_HASH; i++)
 	{
@@ -155,10 +123,10 @@ ethash_dagger(
 
 		if (i == thread_id) {
 			//move mix into state:
-			PACK64(g_state[gid * 12 + 8] , shuffle[0], shuffle[1]);
-			PACK64(g_state[gid * 12 + 9] , shuffle[2], shuffle[3]);
-			PACK64(g_state[gid * 12 + 10], shuffle[4], shuffle[5]);
-			PACK64(g_state[gid * 12 + 11], shuffle[6], shuffle[7]);
+			PACK64(g_state[gid * STATE_SIZE + 8], shuffle[0], shuffle[1]);
+			PACK64(g_state[gid * STATE_SIZE + 9], shuffle[2], shuffle[3]);
+			PACK64(g_state[gid * STATE_SIZE + 10], shuffle[4], shuffle[5]);
+			PACK64(g_state[gid * STATE_SIZE + 11], shuffle[6], shuffle[7]);
 		}
 	}
 #else
@@ -186,7 +154,7 @@ ethash_dagger(
 			mix = share[hash_id].mix;
 	}
 
-	copy(g_state + gid * 12 + 8, mix.uint64s, 4);
+	copy(g_state + gid * STATE_SIZE + 8, mix.uint64s, 4);
 #endif
 }
 
@@ -205,7 +173,7 @@ ethash_final(
 
 	uint32_t const gid = blockIdx.x * blockDim.x + threadIdx.x;
 
-	copy(state, g_state + (gid * 12), 12);
+	copy(state, g_state + (gid * STATE_SIZE), 12);
 
 	// keccak_256(keccak_512(header..nonce) .. mix);
 	state[12] = 0x0000000000000001;
@@ -236,10 +204,6 @@ void run_ethash_search(
 	uint64_t target
 )
 {
-//	ethash_search <<<blocks, threads, 0, stream >>>(g_output, g_header, g_dag, start_nonce, target);
-//	ethash_search <<<blocks, threads, (sizeof(compute_hash_share) * threads) / THREADS_PER_HASH, stream>>>(g_output, g_header, g_dag, start_nonce, target);
-
-
 	ethash_init  <<<blocks, threads, 0, stream >>>(g_state, g_header, start_nonce);
 	cudaDeviceSynchronize();
 

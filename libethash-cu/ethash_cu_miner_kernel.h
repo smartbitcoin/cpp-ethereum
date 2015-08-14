@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+#define STATE_SIZE 12
 
 typedef union
 {

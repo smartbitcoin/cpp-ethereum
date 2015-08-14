@@ -2,7 +2,7 @@
 
 #define PACK64(result, lo, hi) asm("mov.b64 %0, {%1,%2};//pack64"  : "=l"(result) : "r"(lo), "r"(hi));
 #define UNPACK64(lo, hi, input) asm("mov.b64 {%0, %1}, %2;//unpack64" : "=r"(lo),"=r"(hi) : "l"(input));
-
+/*
 __device__ uint64_t compute_hash_shuffle(
 	hash32_t const* g_header,
 	hash128_t const* g_dag,
@@ -101,3 +101,4 @@ __device__ uint64_t compute_hash_shuffle(
 
 	return state[0];
 }
+*/

@@ -164,7 +164,7 @@ bool ethash_cu_miner::init(uint8_t const* _dag, uint64_t _dagSize, unsigned num_
 	result = cudaMalloc(&m_header, 32);
 
 	// create buffer for header
-	result = cudaMalloc(&m_state, m_search_batch_size*12*sizeof(uint64_t));
+	result = cudaMalloc(&m_state, m_search_batch_size*STATE_SIZE*sizeof(uint64_t));
 
 	// copy dag to CPU.
     result = cudaMemcpy(m_dag_ptr, _dag, _dagSize, cudaMemcpyHostToDevice);
