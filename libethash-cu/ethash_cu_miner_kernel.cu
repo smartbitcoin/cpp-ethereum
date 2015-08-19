@@ -51,7 +51,7 @@ ethash_init(
 }
 
 __global__ void
-__launch_bounds__(128, 7)
+__launch_bounds__(128, 8)
 ethash_dagger(
 	uint64_t* g_state,
 	hash128_t const* g_dag
