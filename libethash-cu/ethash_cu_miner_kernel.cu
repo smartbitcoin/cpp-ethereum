@@ -29,7 +29,7 @@ ethash_search(
 	uint32_t const gid = blockIdx.x * blockDim.x + threadIdx.x;	
 	
 #if __CUDA_ARCH__ >= SHUFFLE_MIN_VER
-	uint64_t hash = compute_hash_shuffle(g_header, g_dag, start_nonce + gid);
+	uint64_t hash = compute_hash_shuffle((uint2 *)g_header, g_dag, start_nonce + gid);
 	if (cuda_swab64(hash) < target)
 #else
 	hash32_t hash = compute_hash(g_header, g_dag, start_nonce + gid);	
