@@ -376,7 +376,7 @@ public:
 			<< "	--gpu-batch-size <n> Mining batch size as a power of 2 (default: 18 => 262144)" << endl
 			<< "	--gpu-workgroup-size <n> Mining workgroup size (opencl) / threads per block (CUDA). Should be multiple of 8. (default: 128)." << endl 
 			<< "	--gpu-devices <0 1 2 ..> Use selected gpu devices (CUDA only). (default: 0, max 8 GPUs)" << endl
-			<< "	--high-cpu-load Use this flasg to get a tiny bit better performance at the cost of high CPU load." << endl
+			<< "	--high-cpu-load Use this flag to get a tiny bit better performance at the cost of high CPU load." << endl
 			;
 	}
 
