@@ -167,11 +167,12 @@ public:
 		static void setDefaultPlatform(unsigned) {}
 		static void setDefaultDevice(unsigned _id) { s_deviceId = _id; }
 		static void setNumInstances(unsigned _instances) { s_numInstances = std::min<unsigned>(_instances, getNumDevices()); }
-		static void setKernelParameters(unsigned _miningBuffers, unsigned _batchSize, unsigned _workgroupSize)
+		static void setKernelParameters(unsigned _miningBuffers, unsigned _batchSize, unsigned _workgroupSize, bool _highcpu)
 		{
 			s_miningBuffers = _miningBuffers;
 			s_batchSize		= _batchSize;
 			s_workgroupSize = _workgroupSize;
+			s_highcpu		= _highcpu;
 		}
 		static void setDevices(unsigned * gpuDevices, unsigned gpuDeviceCount) {
 			for (unsigned i = 0; i < gpuDeviceCount; i++) {
@@ -199,6 +200,7 @@ public:
 		static unsigned s_batchSize;
 		static unsigned s_workgroupSize;
 		static int s_devices[8];
+		static bool s_highcpu;
 	};
 #else
 	using CUDAMiner = CPUMiner;

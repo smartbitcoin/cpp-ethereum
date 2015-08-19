@@ -116,7 +116,7 @@ void ethash_cu_miner::finish()
 	cudaDeviceReset();
 }
 
-bool ethash_cu_miner::init(uint8_t const* _dag, uint64_t _dagSize, unsigned num_buffers, unsigned search_batch_size, unsigned workgroup_size, unsigned _deviceId)
+bool ethash_cu_miner::init(uint8_t const* _dag, uint64_t _dagSize, unsigned num_buffers, unsigned search_batch_size, unsigned workgroup_size, unsigned _deviceId, bool highcpu)
 {
 	
 	int device_count = get_num_devices();
@@ -154,6 +154,8 @@ bool ethash_cu_miner::init(uint8_t const* _dag, uint64_t _dagSize, unsigned num_
 
 	// use requested workgroup size, but we require multiple of 8
 	m_workgroup_size = ((workgroup_size + 7) / 8) * 8;
+
+	m_highcpu = highcpu;
 
 	// patch source code
 	cudaError result;
@@ -240,7 +242,8 @@ void ethash_cu_miner::search(uint8_t const* header, uint64_t target, search_hook
 
 			uint32_t results[1 + c_max_search_results];
 
-			waitStream(m_streams[buf]); // 28ms
+			if (!m_highcpu)
+				waitStream(m_streams[buf]); // 28ms
 			cudaMemcpyAsync(results, m_search_buf[batch.buf], (1 + c_max_search_results) * sizeof(uint32_t), cudaMemcpyHostToHost, m_streams[batch.buf]);
 
 			unsigned num_found = std::min<unsigned>(results[0], c_max_search_results);

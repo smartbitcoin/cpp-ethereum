@@ -295,7 +295,7 @@ unsigned Ethash::GPUMiner::s_workgroupSize = 128;
 
 Ethash::GPUMiner::GPUMiner(ConstructionInfo const& _ci):
 	Miner(_ci),
-	Worker("gpuminer" + toString(index())),
+	Worker("gpuminer" + toString(index())), 
 	m_hook(new EthashCLHook(this))
 {
 }
@@ -450,6 +450,7 @@ unsigned Ethash::CUDAMiner::s_numInstances = 1;
 unsigned Ethash::CUDAMiner::s_miningBuffers = 2;
 unsigned Ethash::CUDAMiner::s_batchSize = 1 << 18;
 unsigned Ethash::CUDAMiner::s_workgroupSize = 128;
+bool Ethash::CUDAMiner::s_highcpu = false;
 
 int Ethash::CUDAMiner::s_devices[8] = { -1, -1, -1, -1, -1, -1, -1, -1 } ;
 
@@ -516,7 +517,7 @@ void Ethash::CUDAMiner::workLoop()
 				this_thread::sleep_for(chrono::milliseconds(500));
 			}
 			bytesConstRef dagData = dag->data();
-			m_miner->init(dagData.data(), dagData.size(), s_miningBuffers, s_batchSize, s_workgroupSize, device);
+			m_miner->init(dagData.data(), dagData.size(), s_miningBuffers, s_batchSize, s_workgroupSize, device, s_highcpu);
 		}
 
 		uint64_t upper64OfBoundary = (uint64_t)(u64)((u256)w.boundary >> 192);
