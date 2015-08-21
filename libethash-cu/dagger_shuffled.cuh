@@ -12,7 +12,6 @@ __device__ uint64_t compute_hash_shuffle(
 	// sha3_512(header .. nonce)
 	uint2 state[25];
 
-	//copy(state, g_header->uint64s, 4);
 	state[0] = g_header[0];
 	state[1] = g_header[1];
 	state[2] = g_header[2];
@@ -27,9 +26,9 @@ __device__ uint64_t compute_hash_shuffle(
 	keccak_f1600_block(state,8);
 
 	// Threads work together in this phase in groups of 8.
-	const int thread_id = threadIdx.x & (THREADS_PER_HASH - 1);
+	const int thread_id  = threadIdx.x &  (THREADS_PER_HASH - 1);
 	const int start_lane = threadIdx.x & ~(THREADS_PER_HASH - 1);
-	const int mix_idx = (thread_id & 3);
+	const int mix_idx    = thread_id & 3;
 
 	uint4 mix;
 	uint2 shuffle[8];
@@ -65,7 +64,7 @@ __device__ uint64_t compute_hash_shuffle(
 			for (uint32_t b = 0; b < 4; b++)
 			{
 				if (thread_id == t)
-				{
+				{	
 					shuffle[0].x = fnv(init0 ^ (a + b), ((uint32_t *)&mix)[b]) % d_dag_size;
 				}
 				shuffle[0].x = __shfl(shuffle[0].x, start_lane + t);
@@ -77,7 +76,6 @@ __device__ uint64_t compute_hash_shuffle(
 		uint32_t thread_mix = fnv_reduce(mix);
 
 		// update mix accross threads
-
 		shuffle[0].x = __shfl(thread_mix, start_lane + 0);
 		shuffle[0].y = __shfl(thread_mix, start_lane + 1);
 		shuffle[1].x = __shfl(thread_mix, start_lane + 2);
