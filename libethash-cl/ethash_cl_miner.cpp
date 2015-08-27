@@ -371,6 +371,11 @@ bool ethash_cl_miner::init(
 		// note: ETHASH_CL_MINER_KERNEL is simply ethash_cl_miner_kernel.cl compiled
 		// into a byte array by bin2h.cmake. There is no need to load the file by hand in runtime
 		string code(ETHASH_CL_MINER_KERNEL, ETHASH_CL_MINER_KERNEL + ETHASH_CL_MINER_KERNEL_SIZE);
+		if (strcmp(platforms[_platformId].getInfo<CL_PLATFORM_NAME>().c_str(), "NVIDIA CUDA") == 0)
+		{
+			addDefinition(code, "NVIDIA", 1);
+			ETHCL_LOG("Using Inline PTX");
+		}
 		addDefinition(code, "GROUP_SIZE", s_workgroupSize);
 		addDefinition(code, "DAG_SIZE", (unsigned)(_dagSize / ETHASH_MIX_BYTES));
 		addDefinition(code, "ACCESSES", ETHASH_ACCESSES);
