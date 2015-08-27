@@ -391,14 +391,14 @@ static hash32_t compute_hash(
 	uint isolate
 	)
 {
-	uint const gid = get_global_id(0);
+	uint const lid = get_local_id(0);
 
 	// Compute one init hash per work item.
 	hash64_t init = init_hash(g_header, nonce, isolate);
 
 	// Threads work together in this phase in groups of 8.
-	uint const thread_id = gid % THREADS_PER_HASH;
-	uint const hash_id = (gid % GROUP_SIZE) / THREADS_PER_HASH;
+	uint const thread_id = lid & (THREADS_PER_HASH - 1);
+	uint const hash_id = lid >> 3;
 
 	hash32_t mix;
 	uint i = 0;
@@ -409,7 +409,7 @@ static hash32_t compute_hash(
 			share[hash_id].init = init;
 		barrier(CLK_LOCAL_MEM_FENCE);
 
-		uint4 thread_init = share[hash_id].init.uint4s[thread_id % (64 / sizeof(uint4))];
+		uint4 thread_init = share[hash_id].init.uint4s[thread_id & 3];
 		barrier(CLK_LOCAL_MEM_FENCE);
 
 		uint thread_mix = inner_loop(thread_init, thread_id, share[hash_id].mix.uints, g_dag, isolate);
