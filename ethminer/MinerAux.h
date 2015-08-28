@@ -478,7 +478,7 @@ private:
 		exit(0);
 	}
 
-	void doFindSolution(MinerType _m, int difficulty = 32)
+	void doFindSolution(MinerType _m, int difficulty = 20)
 	{
 		Ethash::BlockHeader genesis;
 		genesis.setDifficulty(1 << 18);
@@ -513,6 +513,9 @@ private:
 
 		EthashAux::FullType dag;
 
+		int targetBlocktime = 15;
+		int time = 0;
+
 		EthashProofOfWork::WorkPackage current = EthashProofOfWork::WorkPackage(genesis);
 		while (true) {
 			bool completed = false;
@@ -526,6 +529,7 @@ private:
 			{
 				cnote << "Mining on difficulty " << difficulty << " " << f.miningProgress();
 				this_thread::sleep_for(chrono::milliseconds(1000));
+				time++;
 			}
 			//cnote << "Solution found";
 			cnote << "Difficulty:" << difficulty << "  Nonce:" << solution.nonce.hex();
@@ -541,8 +545,12 @@ private:
 			else
 				cwarn << "FAILURE: GPU gave incorrect result!";
 
-
-			genesis.setDifficulty(u256(1) << ++difficulty);
+			if (time < 12)
+				difficulty++;
+			else if(time > 18)
+				difficulty--;
+			time = 0;
+			genesis.setDifficulty(u256(1) << difficulty);
 			genesis.noteDirty();
 			f.setWork(genesis);
 			current = EthashProofOfWork::WorkPackage(genesis);

@@ -373,7 +373,10 @@ bool ethash_cl_miner::init(
 		string code(ETHASH_CL_MINER_KERNEL, ETHASH_CL_MINER_KERNEL + ETHASH_CL_MINER_KERNEL_SIZE);
 		if (strcmp(platforms[_platformId].getInfo<CL_PLATFORM_NAME>().c_str(), "NVIDIA CUDA") == 0)
 		{
-			addDefinition(code, "NVIDIA", 1);
+			addDefinition(code, "NVIDIA_KECCAK", 1);
+			ETHCL_LOG("Using NVidia Keccak");
+			// todo: figure out if we're on Compute 3.5 or higher.
+			addDefinition(code, "NVIDIA_PTX", 1);
 			ETHCL_LOG("Using Inline PTX");
 		}
 		addDefinition(code, "GROUP_SIZE", s_workgroupSize);

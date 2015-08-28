@@ -13,7 +13,7 @@ __device__ __constant__ uint64_t const keccak_round_constants[24] = {
 
 #define bitselect(a, b, c) ((a) ^ ((c) & ((b) ^ (a))))
 
-__device__ __forceinline__ void keccak_f1600_block(uint2* s, uint32_t out_size)
+__device__ __forceinline__ void keccak_f1600_block2(uint2* s, uint32_t out_size)
 {
 	uint2 t[5], u, v;
 
@@ -82,8 +82,108 @@ __device__ __forceinline__ void keccak_f1600_block(uint2* s, uint32_t out_size)
 
 		if (i == 23) return;
 		s[8] ^= (~s[9]) & u; s[9] ^= (~u) & v;
-		u = s[10]; v = s[11]; s[10] = bitselect(s[10] ^ s[12], s[10], s[11]); s[11] = bitselect(s[11] ^ s[13], s[11], s[12]); s[12] = bitselect(s[12] ^ s[14], s[12], s[13]); s[13] = bitselect(s[13] ^ u, s[13], s[14]); s[14] = bitselect(s[14] ^ v, s[14], u);
-		u = s[15]; v = s[16]; s[15] = bitselect(s[15] ^ s[17], s[15], s[16]); s[16] = bitselect(s[16] ^ s[18], s[16], s[17]); s[17] = bitselect(s[17] ^ s[19], s[17], s[18]); s[18] = bitselect(s[18] ^ u, s[18], s[19]); s[19] = bitselect(s[19] ^ v, s[19], u);
-		u = s[20]; v = s[21]; s[20] = bitselect(s[20] ^ s[22], s[20], s[21]); s[21] = bitselect(s[21] ^ s[23], s[21], s[22]); s[22] = bitselect(s[22] ^ s[24], s[22], s[23]); s[23] = bitselect(s[23] ^ u, s[23], s[24]); s[24] = bitselect(s[24] ^ v, s[24], u);
+		u = s[10]; v = s[11]; s[10] ^= (~v) & s[12]; s[11] ^= (~s[12]) & s[13]; s[12] ^= (~s[13]) & s[14]; s[13] ^= (~s[14]) & u; s[14] ^= (~u) & v;
+		u = s[15]; v = s[16]; s[15] ^= (~v) & s[17]; s[16] ^= (~s[17]) & s[18]; s[17] ^= (~s[18]) & s[19]; s[18] ^= (~s[19]) & u; s[19] ^= (~u) & v;
+		u = s[20]; v = s[21]; s[20] ^= (~v) & s[22]; s[21] ^= (~s[22]) & s[23]; s[22] ^= (~s[23]) & s[24]; s[23] ^= (~s[24]) & u; s[24] ^= (~u) & v;
 	}
 }
+
+__device__ __forceinline__ void keccak_f1600_block(uint2* s, uint32_t out_size)
+{
+	uint2 t[25], u;
+
+#pragma unroll 3
+	for (int i = 0; i < 24; i++)
+	{
+		/* theta: c = a[0,i] ^ a[1,i] ^ .. a[4,i] */
+		t[0] = s[0] ^ s[5] ^ s[10] ^ s[15] ^ s[20];
+		t[1] = s[1] ^ s[6] ^ s[11] ^ s[16] ^ s[21];
+		t[2] = s[2] ^ s[7] ^ s[12] ^ s[17] ^ s[22];
+		t[3] = s[3] ^ s[8] ^ s[13] ^ s[18] ^ s[23];
+		t[4] = s[4] ^ s[9] ^ s[14] ^ s[19] ^ s[24];
+
+		/* theta: d[i] = c[i+4] ^ rotl(c[i+1],1) */
+		/* theta: a[0,i], a[1,i], .. a[4,i] ^= d[i] */
+		u = t[4] ^ ROL2(t[1], 1);
+		s[0] ^= u; s[5] ^= u; s[10] ^= u; s[15] ^= u; s[20] ^= u;
+		u = t[0] ^ ROL2(t[2], 1);
+		s[1] ^= u; s[6] ^= u; s[11] ^= u; s[16] ^= u; s[21] ^= u;
+		u = t[1] ^ ROL2(t[3], 1);
+		s[2] ^= u; s[7] ^= u; s[12] ^= u; s[17] ^= u; s[22] ^= u;
+		u = t[2] ^ ROL2(t[4], 1);
+		s[3] ^= u; s[8] ^= u; s[13] ^= u; s[18] ^= u; s[23] ^= u;
+		u = t[3] ^ ROL2(t[0], 1);
+		s[4] ^= u; s[9] ^= u; s[14] ^= u; s[19] ^= u; s[24] ^= u;
+
+		/* rho pi: b[..] = rotl(a[..], ..) */
+		/* rho pi: b[..] = rotl(a[..], ..) */
+		t[0] = s[0];
+		t[10] = ROL2(s[1], 1);/////
+		t[7] = ROL2(s[10], 3);
+		t[11] = ROL2(s[7], 6);
+		t[17] = ROL2(s[11], 10);
+		t[18] = ROL2(s[17], 15);
+		t[3] = ROL2(s[18], 21);
+		t[5] = ROL2(s[3], 28);
+		t[16] = ROL2(s[5], 36);
+		t[8] = ROL2(s[16], 45);
+		t[21] = ROL2(s[8], 55);
+		t[24] = ROL2(s[21], 2);
+		t[4] = ROL2(s[24], 14);
+		t[15] = ROL2(s[4], 27);
+		t[23] = ROL2(s[15], 41);
+		t[19] = ROL2(s[23], 56);
+		t[13] = ROL2(s[19], 8);
+		t[12] = ROL2(s[13], 25);
+		t[2] = ROL2(s[12], 43);
+		t[20] = ROL2(s[2], 62);
+		t[14] = ROL2(s[20], 18);
+		t[22] = ROL2(s[14], 39);
+		t[9] = ROL2(s[22], 61);
+		t[6] = ROL2(s[9], 20);
+		t[1] = ROL2(s[6], 44);
+
+
+		// Chi
+		s[0] = bitselect(t[0] ^ t[2], t[0], t[1]);
+
+		// Iota
+		s[0] ^= vectorize(keccak_round_constants[i]);
+		if (i == 23 && out_size == 1) // we only need s[0]
+		{
+			return;
+		}
+
+		s[1] = bitselect(t[1] ^ t[3], t[1], t[2]);
+		s[2] = bitselect(t[2] ^ t[4], t[2], t[3]);
+		s[3] = bitselect(t[3] ^ t[0], t[3], t[4]);
+		s[4] = bitselect(t[4] ^ t[1], t[4], t[0]);
+		s[5] = bitselect(t[5] ^ t[7], t[5], t[6]);
+		s[6] = bitselect(t[6] ^ t[8], t[6], t[7]);
+		s[7] = bitselect(t[7] ^ t[9], t[7], t[8]);
+		s[8] = bitselect(t[8] ^ t[5], t[8], t[9]);
+
+		if (i == 23) // out_size == 8
+		{
+			return;
+		}
+
+		s[9] = bitselect(t[9] ^ t[6], t[9], t[5]);
+		s[10] = bitselect(t[10] ^ t[12], t[10], t[11]);
+		s[11] = bitselect(t[11] ^ t[13], t[11], t[12]);
+		s[12] = bitselect(t[12] ^ t[14], t[12], t[13]);
+		s[13] = bitselect(t[13] ^ t[10], t[13], t[14]);
+		s[14] = bitselect(t[14] ^ t[11], t[14], t[10]);
+		s[15] = bitselect(t[15] ^ t[17], t[15], t[16]);
+		s[16] = bitselect(t[16] ^ t[18], t[16], t[17]);
+		s[17] = bitselect(t[17] ^ t[19], t[17], t[18]);
+		s[18] = bitselect(t[18] ^ t[15], t[18], t[19]);
+		s[19] = bitselect(t[19] ^ t[16], t[19], t[15]);
+		s[20] = bitselect(t[20] ^ t[22], t[20], t[21]);
+		s[21] = bitselect(t[21] ^ t[23], t[21], t[22]);
+		s[22] = bitselect(t[22] ^ t[24], t[22], t[23]);
+		s[23] = bitselect(t[23] ^ t[20], t[23], t[24]);
+		s[24] = bitselect(t[24] ^ t[21], t[24], t[20]);
+	}
+}
+

@@ -10,10 +10,9 @@
 
 #define FNV_PRIME	0x01000193
 
-#if NVIDIA == 1
-
-#define ROL2L(v, n) ROL2(v,n)
-#define ROL2H(v, n) ROL2(v,n)
+#if NVIDIA_PTX == 1
+#define ROL2H(v,n) ROL2(v,n)
+#define ROL2L(v,n) ROL2(v,n)
 
 static uint2 ROL2(const uint2 a, const int offset) {
 	uint2 result;
@@ -31,6 +30,14 @@ static uint2 ROL2(const uint2 a, const int offset) {
 #define ROL2L(v, n) (uint2)(v.x << n | v.y >> (32 - n), v.y << n | v.x >> (32 - n))
 #define ROL2H(v, n) (uint2)(v.y << (n - 32) | v.x >> (64 - n), v.x  << (n - 32) | v.y >> (64 - n))
 #endif
+
+#if NVIDIA_KECCAK == 1
+#define KECCAK_ROUND(state, round, out_size) keccak_f1600_round_nvidia(state, round, out_size)
+#else
+#define KECCAK_ROUND(state, round, out_size) keccak_f1600_round(state, round, out_size)
+#endif
+
+
 
 __constant uint2 const Keccak_f1600_RC[24] = {
 	(uint2)(0x00000001, 0x00000000),
@@ -59,7 +66,7 @@ __constant uint2 const Keccak_f1600_RC[24] = {
 	(uint2)(0x80008008, 0x80000000),
 };
 
-static void keccak_f1600_round(uint2* s, uint r, uint out_size)
+static void keccak_f1600_round_nvidia(uint2* s, uint r, uint out_size)
 {
    #if !__ENDIAN_LITTLE__
 	for (uint i = 0; i != 25; ++i)
@@ -125,9 +132,9 @@ static void keccak_f1600_round(uint2* s, uint r, uint out_size)
 	s[0] ^= Keccak_f1600_RC[r];
 	if (r == 23 && out_size == 4) // we only need s[0]
 	{
-	#if !__ENDIAN_LITTLE__
+#if !__ENDIAN_LITTLE__
 		s[0] = s[0].yx;
-	#endif
+#endif
 		return;
 	}
 	// continue chi
@@ -136,21 +143,131 @@ static void keccak_f1600_round(uint2* s, uint r, uint out_size)
 
 	if (r == 23) // out_size == 8
 	{
-		#if !__ENDIAN_LITTLE__
+#if !__ENDIAN_LITTLE__
 		for (uint i = 0; i != 8; ++i)
 			s[i] = s[i].yx;
-		#endif
+#endif
 		return;
 	}
 	s[8] ^= (~s[9]) & u; s[9] ^= (~u) & v;
-	u = s[10]; v = s[11]; s[10] = bitselect(s[10] ^ s[12], s[10], s[11]); s[11] = bitselect(s[11] ^ s[13], s[11], s[12]); s[12] = bitselect(s[12] ^ s[14], s[12], s[13]); s[13] = bitselect(s[13] ^ u, s[13], s[14]); s[14] = bitselect(s[14] ^ v, s[14], u);
-	u = s[15]; v = s[16]; s[15] = bitselect(s[15] ^ s[17], s[15], s[16]); s[16] = bitselect(s[16] ^ s[18], s[16], s[17]); s[17] = bitselect(s[17] ^ s[19], s[17], s[18]); s[18] = bitselect(s[18] ^ u, s[18], s[19]); s[19] = bitselect(s[19] ^ v, s[19], u);
-	u = s[20]; v = s[21]; s[20] = bitselect(s[20] ^ s[22], s[20], s[21]); s[21] = bitselect(s[21] ^ s[23], s[21], s[22]); s[22] = bitselect(s[22] ^ s[24], s[22], s[23]); s[23] = bitselect(s[23] ^ u, s[23], s[24]); s[24] = bitselect(s[24] ^ v, s[24], u);
+	u = s[10]; v = s[11]; s[10] ^= (~v) & s[12]; s[11] ^= (~s[12]) & s[13]; s[12] ^= (~s[13]) & s[14]; s[13] ^= (~s[14]) & u; s[14] ^= (~u) & v;
+	u = s[15]; v = s[16]; s[15] ^= (~v) & s[17]; s[16] ^= (~s[17]) & s[18]; s[17] ^= (~s[18]) & s[19]; s[18] ^= (~s[19]) & u; s[19] ^= (~u) & v;
+	u = s[20]; v = s[21]; s[20] ^= (~v) & s[22]; s[21] ^= (~s[22]) & s[23]; s[22] ^= (~s[23]) & s[24]; s[23] ^= (~s[24]) & u; s[24] ^= (~u) & v;
 
-   #if !__ENDIAN_LITTLE__
+#if !__ENDIAN_LITTLE__
 	for (uint i = 0; i != 25; ++i)
 		s[i] = s[i].yx;
-   #endif
+#endif
+}
+
+static void keccak_f1600_round(uint2* s, uint r, uint out_size)
+{
+#if !__ENDIAN_LITTLE__
+	for (uint i = 0; i != 25; ++i)
+		s[i] = s[i].yx;
+#endif
+
+	uint2 t[25], u;
+
+	/* theta: c = a[0,i] ^ a[1,i] ^ .. a[4,i] */
+	t[0] = s[0] ^ s[5] ^ s[10] ^ s[15] ^ s[20];
+	t[1] = s[1] ^ s[6] ^ s[11] ^ s[16] ^ s[21];
+	t[2] = s[2] ^ s[7] ^ s[12] ^ s[17] ^ s[22];
+	t[3] = s[3] ^ s[8] ^ s[13] ^ s[18] ^ s[23];
+	t[4] = s[4] ^ s[9] ^ s[14] ^ s[19] ^ s[24];
+
+	/* theta: d[i] = c[i+4] ^ rotl(c[i+1],1) */
+	/* theta: a[0,i], a[1,i], .. a[4,i] ^= d[i] */
+	u = t[4] ^ ROL2L(t[1], 1);
+	s[0] ^= u; s[5] ^= u; s[10] ^= u; s[15] ^= u; s[20] ^= u;
+	u = t[0] ^ ROL2L(t[2], 1);
+	s[1] ^= u; s[6] ^= u; s[11] ^= u; s[16] ^= u; s[21] ^= u;
+	u = t[1] ^ ROL2L(t[3], 1);
+	s[2] ^= u; s[7] ^= u; s[12] ^= u; s[17] ^= u; s[22] ^= u;
+	u = t[2] ^ ROL2L(t[4], 1);
+	s[3] ^= u; s[8] ^= u; s[13] ^= u; s[18] ^= u; s[23] ^= u;
+	u = t[3] ^ ROL2L(t[0], 1);
+	s[4] ^= u; s[9] ^= u; s[14] ^= u; s[19] ^= u; s[24] ^= u;
+
+	/* rho pi: b[..] = rotl(a[..], ..) */
+	t[0] = s[0];
+	t[10] = ROL2L(s[1], 1);/////
+	t[7] = ROL2L(s[10], 3);
+	t[11] = ROL2L(s[7], 6);
+	t[17] = ROL2L(s[11], 10);
+	t[18] = ROL2L(s[17], 15);
+	t[3] = ROL2L(s[18], 21);
+	t[5] = ROL2L(s[3], 28);
+	t[16] = ROL2H(s[5], 36);
+	t[8] = ROL2H(s[16], 45);
+	t[21] = ROL2H(s[8], 55);
+	t[24] = ROL2L(s[21], 2);
+	t[4] = ROL2L(s[24], 14);
+	t[15] = ROL2L(s[4], 27);
+	t[23] = ROL2H(s[15], 41);
+	t[19] = ROL2H(s[23], 56);
+	t[13] = ROL2L(s[19], 8);
+	t[12] = ROL2L(s[13], 25);
+	t[2] = ROL2H(s[12], 43);
+	t[20] = ROL2H(s[2], 62);
+	t[14] = ROL2L(s[20], 18);
+	t[22] = ROL2H(s[14], 39);
+	t[9] = ROL2H(s[22], 61);
+	t[6] = ROL2L(s[9], 20);
+	t[1] = ROL2H(s[6], 44);
+
+	// Chi
+	s[0] = bitselect(t[0] ^ t[2], t[0], t[1]);
+
+	// Iota
+	s[0] ^= Keccak_f1600_RC[r];
+	if (r == 23 && out_size == 4) // we only need s[0]
+	{
+#if !__ENDIAN_LITTLE__
+		s[0] = s[0].yx;
+#endif
+		return;
+	}
+
+	s[1] = bitselect(t[1] ^ t[3], t[1], t[2]);
+	s[2] = bitselect(t[2] ^ t[4], t[2], t[3]);
+	s[3] = bitselect(t[3] ^ t[0], t[3], t[4]);
+	s[4] = bitselect(t[4] ^ t[1], t[4], t[0]);
+	s[5] = bitselect(t[5] ^ t[7], t[5], t[6]);
+	s[6] = bitselect(t[6] ^ t[8], t[6], t[7]);
+	s[7] = bitselect(t[7] ^ t[9], t[7], t[8]);
+	s[8] = bitselect(t[8] ^ t[5], t[8], t[9]);
+
+	if (r == 23) // out_size == 8
+	{
+#if !__ENDIAN_LITTLE__
+		for (uint i = 0; i != 8; ++i)
+			s[i] = s[i].yx;
+#endif
+		return;
+	}
+
+	s[9] = bitselect(t[9] ^ t[6], t[9], t[5]);
+	s[10] = bitselect(t[10] ^ t[12], t[10], t[11]);
+	s[11] = bitselect(t[11] ^ t[13], t[11], t[12]);
+	s[12] = bitselect(t[12] ^ t[14], t[12], t[13]);
+	s[13] = bitselect(t[13] ^ t[10], t[13], t[14]);
+	s[14] = bitselect(t[14] ^ t[11], t[14], t[10]);
+	s[15] = bitselect(t[15] ^ t[17], t[15], t[16]);
+	s[16] = bitselect(t[16] ^ t[18], t[16], t[17]);
+	s[17] = bitselect(t[17] ^ t[19], t[17], t[18]);
+	s[18] = bitselect(t[18] ^ t[15], t[18], t[19]);
+	s[19] = bitselect(t[19] ^ t[16], t[19], t[15]);
+	s[20] = bitselect(t[20] ^ t[22], t[20], t[21]);
+	s[21] = bitselect(t[21] ^ t[23], t[21], t[22]);
+	s[22] = bitselect(t[22] ^ t[24], t[22], t[23]);
+	s[23] = bitselect(t[23] ^ t[20], t[23], t[24]);
+	s[24] = bitselect(t[24] ^ t[21], t[24], t[20]);
+
+#if !__ENDIAN_LITTLE__
+	for (uint i = 0; i != 25; ++i)
+		s[i] = s[i].yx;
+#endif
 }
 
 static void keccak_f1600_no_absorb(ulong* a, uint in_size, uint out_size, uint isolate)
@@ -182,13 +299,13 @@ static void keccak_f1600_no_absorb(ulong* a, uint in_size, uint out_size, uint i
 		// doesn't bother.
 		if (isolate)
 		{
-			keccak_f1600_round((uint2*)a, r++, 25);
+			KECCAK_ROUND((uint2*)a, r++, 25);
 		}
 	}
 	while (r < 23);
 
 	// final round optimised for digest size
-	keccak_f1600_round((uint2*)a, r++, out_size);
+	KECCAK_ROUND((uint2*)a, r++, out_size);
 }
 
 #define copy(dst, src, count) for (uint i = 0; i != count; ++i) { (dst)[i] = (src)[i]; }
