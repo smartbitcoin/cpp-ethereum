@@ -478,7 +478,7 @@ private:
 		exit(0);
 	}
 
-	void doFindSolution(MinerType _m, int difficulty = 13)
+	void doFindSolution(MinerType _m, int difficulty = 32)
 	{
 		Ethash::BlockHeader genesis;
 		genesis.setDifficulty(1 << 18);
