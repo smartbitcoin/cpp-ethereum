@@ -513,7 +513,6 @@ private:
 
 		EthashAux::FullType dag;
 
-		int targetBlocktime = 15;
 		int time = 0;
 
 		EthashProofOfWork::WorkPackage current = EthashProofOfWork::WorkPackage(genesis);

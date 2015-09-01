@@ -130,7 +130,7 @@ static void keccak_f1600_round_nvidia(uint2* s, uint r, uint out_size)
 	/* iota: a[0,0] ^= round constant */
 
 	s[0] ^= Keccak_f1600_RC[r];
-	if (r == 23 && out_size == 4) // we only need s[0]
+	if (out_size == 4) // we only need s[0]
 	{
 #if !__ENDIAN_LITTLE__
 		s[0] = s[0].yx;
@@ -141,7 +141,7 @@ static void keccak_f1600_round_nvidia(uint2* s, uint r, uint out_size)
 	s[1] ^= (~s[2]) & s[3]; s[2] ^= (~s[3]) & s[4]; s[3] ^= (~s[4]) & u; s[4] ^= (~u) & v;
 	u = s[5]; v = s[6]; s[5] ^= (~v) & s[7]; s[6] ^= (~s[7]) & s[8]; s[7] ^= (~s[8]) & s[9];
 
-	if (r == 23) // out_size == 8
+	if (out_size == 8)
 	{
 #if !__ENDIAN_LITTLE__
 		for (uint i = 0; i != 8; ++i)
@@ -221,7 +221,7 @@ static void keccak_f1600_round(uint2* s, uint r, uint out_size)
 
 	// Iota
 	s[0] ^= Keccak_f1600_RC[r];
-	if (r == 23 && out_size == 4) // we only need s[0]
+	if (out_size == 4) // we only need s[0]
 	{
 #if !__ENDIAN_LITTLE__
 		s[0] = s[0].yx;
@@ -238,7 +238,7 @@ static void keccak_f1600_round(uint2* s, uint r, uint out_size)
 	s[7] = bitselect(t[7] ^ t[9], t[7], t[8]);
 	s[8] = bitselect(t[8] ^ t[5], t[8], t[9]);
 
-	if (r == 23) // out_size == 8
+	if (out_size == 8)
 	{
 #if !__ENDIAN_LITTLE__
 		for (uint i = 0; i != 8; ++i)
