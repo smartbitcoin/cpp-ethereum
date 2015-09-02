@@ -399,7 +399,7 @@ private:
 		exit(0);
 	}
 
-	void doFindSolution(MinerType _m, int difficulty = 13)
+	void doFindSolution(MinerType _m, int difficulty = 28)
 	{
 		BlockInfo genesis;
 		genesis.difficulty = 1 << 18;
@@ -441,7 +441,7 @@ private:
 			});
 			for (unsigned i = 0; !completed; ++i)
 			{
-				//cnote << "Mining on difficulty " << difficulty << " " << f.miningProgress();
+				cnote << "Mining on difficulty " << difficulty << " " << f.miningProgress();
 				this_thread::sleep_for(chrono::milliseconds(1000));
 			}
 			//cnote << "Solution found";

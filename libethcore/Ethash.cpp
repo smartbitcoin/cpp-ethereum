@@ -501,7 +501,7 @@ void Ethash::CUDAMiner::workLoop()
 			delete m_miner;
 			m_miner = new ethash_cu_miner;
 
-			unsigned device = instances() > 1 ? (s_devices[index()] > -1 ? s_devices[index()] : index()) : s_deviceId;
+			unsigned device = s_devices[index()] > -1 ? s_devices[index()] : index();
 
 			EthashAux::FullType dag;
 			while (true)
